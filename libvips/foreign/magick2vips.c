@@ -93,7 +93,9 @@
 #endif /*HAVE_CONFIG_H*/
 #include <vips/intl.h>
 
-#ifdef HAVE_MAGICK
+#ifdef ENABLE_MAGICKLOAD
+
+#ifdef HAVE_MAGICK6
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -892,5 +894,6 @@ vips__magick_read_buffer_header( const void *buf, const size_t len,
 	return( 0 );
 }
 
-#endif /*HAVE_MAGICK*/
+#endif /*HAVE_MAGICK6*/
 
+#endif /*ENABLE_MAGICKLOAD*/

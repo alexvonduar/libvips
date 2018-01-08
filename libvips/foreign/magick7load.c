@@ -50,6 +50,8 @@
 #include <vips/buf.h>
 #include <vips/internal.h>
 
+#ifdef ENABLE_MAGICKLOAD
+
 #ifdef HAVE_MAGICK7
 
 #include <MagickCore/MagickCore.h>
@@ -911,3 +913,5 @@ vips_foreign_load_magick7_buffer_init( VipsForeignLoadMagick7Buffer *buffer )
 }
 
 #endif /*HAVE_MAGICK7*/
+
+#endif /*ENABLE_MAGICKLOAD*/

@@ -55,7 +55,7 @@
  * 	- optionally parse rationals as a/b
  * 	- update exif image dimensions
  * 21/11/12
- * 	- attach IPCT data (app13), thanks Gary
+ * 	- attach IPTC data (app13), thanks Gary
  * 2/10/13 Lovell Fuller
  * 	- add optimize_coding parameter
  * 	- add progressive mode
@@ -84,6 +84,8 @@
  * 	- move exif handling out to exif.c
  * 27/2/17
  * 	- use dbuf for memory output
+ * 19/12/17 Lovell
+ * 	- fix a leak with an error during buffer output
  */
 
 /*
@@ -592,7 +594,7 @@ write_vips( Write *write, int qfac, const char *profile,
 			write_blob( write, 
 				VIPS_META_XMP_NAME, JPEG_APP0 + 1 ) ||
 			write_blob( write, 
-				VIPS_META_IPCT_NAME, JPEG_APP0 + 13 ) )
+				VIPS_META_IPTC_NAME, JPEG_APP0 + 13 ) )
 			return( -1 );
 
 		/* A profile supplied as an argument overrides an embedded 
@@ -618,6 +620,8 @@ write_vips( Write *write, int qfac, const char *profile,
 	if( setjmp( write->eman.jmp ) ) 
 		return( -1 );
 
+	/* This should obly be called on a successful write.
+	 */
 	jpeg_finish_compress( &write->cinfo );
 
 	return( 0 );
@@ -725,7 +729,21 @@ init_destination( j_compress_ptr cinfo )
 	empty_output_buffer( cinfo ); 
 }
 
-/* Cleanup. Copy the set of blocks out as a big lump.
+/* Free the buffer writer.
+ */
+static void
+buf_destroy( j_compress_ptr cinfo )
+{
+	if( cinfo->dest ) {
+		OutputBuffer *buf = (OutputBuffer *) cinfo->dest;
+
+		vips_dbuf_destroy( &buf->dbuf );
+	}
+}
+
+/* Cleanup. Copy the set of blocks out as a big lump. This is only called by
+ * libjpeg on successful write --- you must call buf_destroy() explicitly to 
+ * release resources.
  */
 METHODDEF(void)
 term_destination( j_compress_ptr cinfo )
@@ -798,7 +816,7 @@ vips__jpeg_write_buffer( VipsImage *in,
 	/* Make jpeg compression object.
  	 */
 	if( setjmp( write->eman.jmp ) ) {
-		/* Here for longjmp() from new_error_exit().
+		/* Here for longjmp() from new_error_exit() during setup.
 		 */
 		write_destroy( write );
 
@@ -810,16 +828,18 @@ vips__jpeg_write_buffer( VipsImage *in,
 	 */
         buf_dest( &write->cinfo, obuf, olen );
 
-	/* Convert!
+	/* Convert! Write errors come back here as an error return.
 	 */
 	if( write_vips( write, 
 		Q, profile, optimize_coding, progressive, strip, no_subsample,
 		trellis_quant, overshoot_deringing, optimize_scans, 
 		quant_table ) ) {
+		buf_destroy( &write->cinfo );
 		write_destroy( write );
 
 		return( -1 );
 	}
+	buf_destroy( &write->cinfo );
 	write_destroy( write );
 
 	return( 0 );

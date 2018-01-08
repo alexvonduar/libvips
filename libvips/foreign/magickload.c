@@ -58,7 +58,9 @@
 #include <vips/buf.h>
 #include <vips/internal.h>
 
-#ifdef HAVE_MAGICK
+#ifdef ENABLE_MAGICKLOAD
+
+#ifdef HAVE_MAGICK6
 
 #include "pforeign.h"
 
@@ -324,7 +326,9 @@ vips_foreign_load_magick_buffer_init( VipsForeignLoadMagickBuffer *buffer )
 {
 }
 
-#endif /*HAVE_MAGICK*/
+#endif /*HAVE_MAGICK6*/
+
+#endif /*ENABLE_MAGICKLOAD*/
 
 /**
  * vips_magickload:

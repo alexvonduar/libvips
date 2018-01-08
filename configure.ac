@@ -2,7 +2,7 @@
 
 # also update the version number in the m4 macros below
 
-AC_INIT([vips], [8.6.1], [vipsip@jiscmail.ac.uk])
+AC_INIT([vips], [8.7.0], [vipsip@jiscmail.ac.uk])
 # required for gobject-introspection
 AC_PREREQ(2.62)
 
@@ -17,8 +17,8 @@ AC_CONFIG_MACRO_DIR([m4])
 
 # user-visible library versioning
 m4_define([vips_major_version], [8])
-m4_define([vips_minor_version], [6])
-m4_define([vips_micro_version], [1])
+m4_define([vips_minor_version], [7])
+m4_define([vips_micro_version], [0])
 m4_define([vips_version],
           [vips_major_version.vips_minor_version.vips_micro_version])
 
@@ -26,7 +26,7 @@ VIPS_MAJOR_VERSION=vips_major_version()
 VIPS_MINOR_VERSION=vips_minor_version()
 VIPS_MICRO_VERSION=vips_micro_version()
 VIPS_VERSION=vips_version()
-VIPS_VERSION_STRING=$VIPS_VERSION-`date`
+VIPS_VERSION_STRING=$VIPS_VERSION-`date -u -r ChangeLog`
 
 # libtool library versioning ... not user-visible (except as part of the
 # library file name) and does not correspond to major/minor/micro above
@@ -37,9 +37,9 @@ VIPS_VERSION_STRING=$VIPS_VERSION-`date`
 #   binary interface changes backwards compatible?: increment age
 #   binary interface changes not backwards compatible?: reset age to 0
 
-LIBRARY_CURRENT=50
-LIBRARY_REVISION=1
-LIBRARY_AGE=8
+LIBRARY_CURRENT=51
+LIBRARY_REVISION=0
+LIBRARY_AGE=9
 
 # patched into include/vips/version.h
 AC_SUBST(VIPS_VERSION)
@@ -551,6 +551,7 @@ fi
 # ImageMagick 
 AC_ARG_WITH([magick], 
   AS_HELP_STRING([--without-magick], [build without libMagic (default: test)]))
+
 AC_ARG_WITH([magickpackage], 
   AS_HELP_STRING([--with-magickpackage], 
     [magickpackage to use (default: MagickCore; try GraphicsMagick to build against gm instead)]))
@@ -575,17 +576,20 @@ fi
 # we have a separate loader for magick7 with fewer ifdef
 # options; only test for features on the magick6 case
 
+magick_version=
 if test x"$with_magick" != x"no"; then
   PKG_CHECK_MODULES(MAGICK, $with_magickpackage >= 7.0,  
     [AC_DEFINE(HAVE_MAGICK7,1,[define if you have libMagick7 installed.])
-     with_magick="yes (magick7)"
+     with_magick=yes
      magick7=yes
+     magick_version=magick7
      PACKAGES_USED="$PACKAGES_USED $with_magickpackage"
     ],
     [PKG_CHECK_MODULES(MAGICK, $with_magickpackage,  
-       [AC_DEFINE(HAVE_MAGICK,1,[define if you have libMagick installed.])
-        with_magick="yes (magick6)"
+       [AC_DEFINE(HAVE_MAGICK6,1,[define if you have libMagick6 installed.])
+        with_magick=yes
         magick6=yes
+        magick_version=magick6
         PACKAGES_USED="$PACKAGES_USED $with_magickpackage"
        ],
        [AC_MSG_WARN([$with_magickpackage not found; disabling Magick support])
@@ -659,6 +663,24 @@ if test x"$magick6" = x"yes"; then
     [],
     [#include <magick/api.h>])
   CFLAGS="$save_CFLAGS"
+fi
+
+# have flags to turn load and save off independently ... some people will want
+# save but not load, for example
+AC_ARG_ENABLE([magickload], 
+  AS_HELP_STRING([--disable-magickload], 
+		 [disable libMagic load (default: enabled)]))
+if test x"$enable_magickload" != x"no"; then
+    AC_DEFINE(ENABLE_MAGICKLOAD,1,[define to enable load with libMagick])
+    enable_magickload=yes
+fi
+
+AC_ARG_ENABLE([magicksave], 
+  AS_HELP_STRING([--disable-magicksave], 
+		 [disable libMagic save (default: enabled)]))
+if test x"$enable_magicksave" != x"no"; then
+    AC_DEFINE(ENABLE_MAGICKSAVE,1,[define to enable save with libMagick])
+    enable_magicksave=yes
 fi
 
 # orc
@@ -1191,7 +1213,9 @@ build PPM support: 			$with_ppm
 * optional dependencies
 use fftw3 for FFT: 			$with_fftw
 Magick package: 			$with_magickpackage
-file import with libMagick: 		$with_magick
+Magick API version: 			$magick_version
+load with libMagick: 			$enable_magickload
+save with libMagick: 			$enable_magicksave
 accelerate loops with orc: 		$with_orc
   (requires orc-0.4.11 or later)
 ICC profile support with lcms: 		$with_lcms

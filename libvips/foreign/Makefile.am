@@ -29,9 +29,12 @@ libforeign_la_SOURCES = \
 	foreign.c \
 	matlab.c \
 	matload.c \
+	magick.h \
+	magick.c \
 	magick2vips.c \
 	magickload.c \
 	magick7load.c \
+	magicksave.c \
 	pngload.c \
 	pngsave.c \
 	vipspng.c \

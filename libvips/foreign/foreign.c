@@ -18,6 +18,8 @@
  * 	- transform cmyk->rgb if there's an embedded profile
  * 16/6/17
  * 	- add page_height
+ * 1/1/18
+ * 	- META_SEQ support moved here
  */
 
 /*
@@ -838,7 +840,6 @@ vips_foreign_load_start( VipsImage *out, void *a, void *b )
 		 */
 		vips_image_pipelinev( load->out, load->out->dhint, 
 			load->real, NULL );
-
 	}
 
 	return( vips_region_new( load->real ) );
@@ -875,6 +876,7 @@ vips_foreign_load_build( VipsObject *object )
 	VipsForeignLoadClass *fclass = VIPS_FOREIGN_LOAD_GET_CLASS( object );
 
 	VipsForeignFlags flags;
+	gboolean sequential;
 
 #ifdef DEBUG
 	printf( "vips_foreign_load_build:\n" );
@@ -894,11 +896,14 @@ vips_foreign_load_build( VipsObject *object )
 
 	g_object_set( load, "flags", flags, NULL );
 
-	/* If the loader can do sequential mode and sequential has been
-	 * requested, we need to block caching.
+	/* Seq access has been requested and the loader supports seq.
 	 */
-	if( (load->flags & VIPS_FOREIGN_SEQUENTIAL) && 
-		load->access != VIPS_ACCESS_RANDOM ) 
+	sequential = (load->flags & VIPS_FOREIGN_SEQUENTIAL) && 
+		load->access != VIPS_ACCESS_RANDOM;
+
+	/* We must block caching of seq loads.
+	 */
+	if( sequential )
 		load->nocache = TRUE;
 
 	if( VIPS_OBJECT_CLASS( vips_foreign_load_parent_class )->
@@ -952,6 +957,12 @@ vips_foreign_load_build( VipsObject *object )
 			NULL, load ) ) 
 			return( -1 );
 	}
+
+	/* Tell downstream if we are reading sequentially.
+	 */
+	if( sequential )
+		vips_image_set_area( load->out, 
+			VIPS_META_SEQUENTIAL, NULL, NULL ); 
 
 	return( 0 );
 }
@@ -1775,6 +1786,8 @@ vips_foreign_operation_init( void )
 	extern GType vips_foreign_load_magick_buffer_get_type( void ); 
 	extern GType vips_foreign_load_magick7_file_get_type( void ); 
 	extern GType vips_foreign_load_magick7_buffer_get_type( void ); 
+	extern GType vips_foreign_save_magick_file_get_type( void );
+	extern GType vips_foreign_save_magick_buffer_get_type( void );
 	extern GType vips_foreign_save_dz_file_get_type( void ); 
 	extern GType vips_foreign_save_dz_buffer_get_type( void ); 
 	extern GType vips_foreign_load_webp_file_get_type( void ); 
@@ -1877,15 +1890,22 @@ vips_foreign_operation_init( void )
 	vips_foreign_load_openslide_get_type(); 
 #endif /*HAVE_OPENSLIDE*/
 
-#ifdef HAVE_MAGICK
-	vips_foreign_load_magick_file_get_type(); 
-	vips_foreign_load_magick_buffer_get_type(); 
-#endif /*HAVE_MAGICK*/
+#ifdef ENABLE_MAGICKLOAD
+#ifdef HAVE_MAGICK6
+	vips_foreign_load_magick_file_get_type();
+	vips_foreign_load_magick_buffer_get_type();
+#endif /*HAVE_MAGICK6*/
 
 #ifdef HAVE_MAGICK7
-	vips_foreign_load_magick7_file_get_type(); 
-	vips_foreign_load_magick7_buffer_get_type(); 
+	vips_foreign_load_magick7_file_get_type();
+	vips_foreign_load_magick7_buffer_get_type();
 #endif /*HAVE_MAGICK7*/
+#endif /*ENABLE_MAGICKLOAD*/
+
+#ifdef ENABLE_MAGICKSAVE
+	vips_foreign_save_magick_file_get_type();
+	vips_foreign_save_magick_buffer_get_type();
+#endif /*ENABLE_MAGICKSAVE*/
 
 #ifdef HAVE_CFITSIO
 	vips_foreign_load_fits_get_type(); 
